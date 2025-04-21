@@ -1,6 +1,6 @@
 01-goldhamster-pipeline/
-data/
-models/
+*.txt
+models/goldhamster
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
