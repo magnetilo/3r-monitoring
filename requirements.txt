@@ -1,0 +1,9 @@
+ipykernel
+mlflow
+pandas
+requests
+tqdm
+transformers
+tensorflow
+keras<3
+pytorch
