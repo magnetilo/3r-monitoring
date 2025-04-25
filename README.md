@@ -43,14 +43,20 @@ Links:
 PubMed API:
 - https://pmc.ncbi.nlm.nih.gov/tools/developers
 - https://pmc.ncbi.nlm.nih.gov/tools/get-metadata
+- Example API request: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=30955825
 
 #### Download data:
 ````
 # Download GoldHamster labels
-uv run src/data/download_goldhamster_labels.py
+python scripts/download_goldhamster_labels.py
 
 # Download PubMed article metadata for GoldHamster labels
-uv run src/data/download_pubmed_metadata.py
+python scripts/download_pubmed_metadata.py
+````
+
+#### Run training and/or evaluation of pipeline:
+````
+python scripts/train_and_eval_goldhamster.py
 ````
 
 #### Notebooks:

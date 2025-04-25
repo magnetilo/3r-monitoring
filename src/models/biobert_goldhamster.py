@@ -49,7 +49,7 @@ def load_papers(papers_dir: Path) -> pd.DataFrame:
         data.append({"pmid": pmid, "title": title, "abstract": abstract, "mesh_terms": mesh_terms})
     return pd.DataFrame(data)
 
-def preprocess_data(papers: pd.DataFrame, max_length: int) -> Dict[str, np.ndarray]:
+def preprocess_data(papers: pd.DataFrame) -> Dict[str, np.ndarray]:
     """Preprocess the data into the format required by the GoldHamster model."""
     inputs = []
     for _, row in papers.iterrows():
@@ -57,7 +57,17 @@ def preprocess_data(papers: pd.DataFrame, max_length: int) -> Dict[str, np.ndarr
         abstract = row["abstract"]
         if title != "N/A" and abstract != "N/A":
             inputs.append(f"{title} {abstract}")
-    tokenized = tokenizer(inputs, padding=True, truncation=True, max_length=max_length, return_tensors="np")
+    tokenized = tokenizer(
+        text=inputs,
+    	add_special_tokens=True,
+	    max_length=max_length,
+	    truncation=True,
+	    padding=True, 
+	    return_tensors='tf',
+	    return_token_type_ids = False,
+	    return_attention_mask = False,
+	    verbose = True
+    )
     return pad_sequences(tokenized["input_ids"], maxlen=max_length, padding="post", truncating="post")
 
 def predict_with_model(model_path: Path, inputs: np.ndarray) -> List[Dict[str, float]]:
@@ -93,7 +103,7 @@ def main():
     papers = load_papers(PAPERS_DIR)
     
     # Preprocess data
-    inputs = preprocess_data(papers, max_length)
+    inputs = preprocess_data(papers)
     
     # Apply model
     print(f"Applying GoldHamster model to {len(inputs)} inputs...")

@@ -1,6 +1,10 @@
 01-goldhamster-pipeline/
 *.txt
-models/goldhamster
+*.h5
+*.tsv
+*.json
+mlruns/
+mlartifacts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -7,3 +7,4 @@ transformers
 tensorflow
 keras<3
 pytorch
+mlflow
