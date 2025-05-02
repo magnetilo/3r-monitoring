@@ -19,13 +19,14 @@ class BioBERTClassifier:
     
     def __init__(
         self, 
-        model_dir: Path,
         labels: List[str],
-        model_name: str = "biobert",
+        model_path: Path,
+        model_pretrainded: str = "dmis-lab/biobert-v1.1",
         max_length: int = 256,
         learning_rate: float = 1e-4,
         batch_size: int = 32,
-        epochs: int = 10
+        epochs: int = 10,
+        load_model: Optional[bool] = False
     ):
         """
         Initialize the BioBERT model.
@@ -33,48 +34,54 @@ class BioBERTClassifier:
         Args:
             model_dir: Directory to save models
             labels: List of labels to predict
-            model_name: Name of the model for saving files
+            model_pretrainded: Pre-trained Hugging Face model name to use instead of BioBERT
             max_length: Maximum sequence length for BERT
             learning_rate: Learning rate for optimizer
             batch_size: Batch size for training
             epochs: Number of epochs for training
+            load_model: Whether to load a pretrained model from model_path
         """
-        self.model_dir = model_dir
-        self.model_name = model_name
+        self.model_path = model_path
+        self.model_pretrainded = model_pretrainded
         self.max_length = max_length
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.epochs = epochs
-        self.model_path = None
+        self.all_labels = labels
+        self.load_model = load_model
+
         self.model = None
         self.tokenizer = None
-        self.all_labels = labels
         
         # Initialize BioBERT components
-        self._setup_biobert()
+        self._setup_biobert(model_pretrainded)
+
+        # Load the model if specified
+        if load_model:
+            self._load_model(model_path)
     
-    def _setup_biobert(self) -> None:
+    def _setup_biobert(self, model_pretrainded) -> None:
         """Set up the BioBERT tokenizer and model."""
         # Load BioBERT tokenizer
-        self.tokenizer = BertTokenizerFast.from_pretrained('dmis-lab/biobert-v1.1')
+        self.tokenizer = BertTokenizerFast.from_pretrained(model_pretrainded)
         
         # Load the Transformers BERT model
         self.transformer_model = TFBertModel.from_pretrained(
-            'dmis-lab/biobert-v1.1', 
+            model_pretrainded, 
             from_pt=True
         )
         self.config = self.transformer_model.config
     
-    def set_custom_bert_model(self, model_name: str) -> None:
-        """
-        Use a custom BERT model instead of BioBERT.
+    # def set_custom_bert_model(self, model_name: str) -> None:
+    #     """
+    #     Use a custom BERT model instead of BioBERT.
         
-        Args:
-            model_name: Name of the BERT model to use (from Hugging Face)
-        """
-        self.tokenizer = BertTokenizerFast.from_pretrained(model_name)
-        self.transformer_model = TFBertModel.from_pretrained(model_name, from_pt=True)
-        self.config = self.transformer_model.config
+    #     Args:
+    #         model_name: Name of the BERT model to use (from Hugging Face)
+    #     """
+    #     self.tokenizer = BertTokenizerFast.from_pretrained(model_name)
+    #     self.transformer_model = TFBertModel.from_pretrained(model_name, from_pt=True)
+    #     self.config = self.transformer_model.config
     
     def _prepare_data(self, data: pd.DataFrame, text_column: str = "TEXT") -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """
@@ -109,7 +116,7 @@ class BioBERTClassifier:
         
         return x_dict, y_dict
     
-    def build_model(self, data: pd.DataFrame) -> None:
+    def _build_model(self, data: pd.DataFrame) -> None:
         """
         Build the BioBERT model architecture.
         
@@ -173,9 +180,9 @@ class BioBERTClassifier:
         Returns:
             Training history
         """
-        # Create a timestamp for the model file
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        self.model_path = self.model_dir / f"{self.model_name}_{timestamp}.h5"
+        # Check if model is built
+        if self.model is None:
+            self._build_model(train_data)
         
         # Prepare training and validation data
         x_train, y_train = self._prepare_data(train_data, text_column)
@@ -195,7 +202,7 @@ class BioBERTClassifier:
         
         return history
     
-    def load_model(self, model_path: Path) -> None:
+    def _load_model(self, model_path: Path) -> None:
         """
         Load a pretrained model.
         

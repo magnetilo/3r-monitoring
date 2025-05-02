@@ -11,9 +11,10 @@ sys.path.append(str(Path().resolve() / "src"))
 print(str(Path().resolve() / "src"))
 
 # Local imports
-from data_loaders import GoldhamsterDataLoader, GenericTextDataLoader
+from data_loaders import GoldhamsterDataLoader
 from model import BioBERTClassifier
 from evaluation import evaluate_multilabel, print_evaluation_results
+from utils import load_mlflow_params_by_experiment_and_run
 
 
 # Configuration parameters
@@ -24,32 +25,27 @@ CONFIG = {
     "predict": True,            # Whether to make predictions
     "evaluate": True,           # Whether to evaluate predictions
 
-    # Model parameters
-    "model_dir": "goldhamster_custom",          # Directory to save the model
-    # "model_name": "goldhamster_model.h5",         # Path to pretrained model (for prediction only)
-    "model_name": "goldhamster_model_2025-04-25_13-48-48.h5",
-    "learning_rate": 1e-4,      # Learning rate for training
-    "batch_size": 32,           # Batch size for training
-    "epochs": 10,               # Number of training epochs
-    "max_length": 256,          # Maximum sequence length for BERT
-
-    # Dataset parameters
-    "dataset_type": "goldhamster",  # Type of dataset to use (goldhamster or custom)
-    "split": 1,                     # Data split number to use
-    "data_dir": None,               # Directory containing custom dataset files
-    "labels": None,                 # Comma-separated list of labels for custom dataset
-    "use_titles": True,             # Whether to use paper titles
-    "use_abstracts": True,          # Whether to use paper abstracts
-    "use_mesh_terms": True,         # Whether to use MeSH terms
-    "text_column": "TEXT",          # Name of the column containing text
-    "id_column": "PMID",              # Name of the column containing document IDs
-    
-    # BERT model selection
-    "bert_model": None,             # Hugging Face model name to use instead of BioBERT
-
     # MLflow parameters
     "mlflow_tracking_uri": "http://127.0.0.1:5000",  # MLflow tracking server URI
-    "experiment_name": "biobert_classification",     # MLflow experiment name
+    "mlflow_experiment_name": "goldhamster",         # MLflow experiment name
+    "mlflow_run_name": None,                         # MLflow run name (only used if train is False)
+
+    # Model parameters
+    "model_path": "goldhamster/biobert-v1.1-orig",  # Relative path to save the model (if training) and load the model (if predicting)
+    "model_pretrainded": "dmis-lab/biobert-v1.1",   # Pre-trained Hugging Face model name to use instead of BioBERT
+    "model_learning_rate": 1e-4,      # Learning rate for training
+    "model_batch_size": 32,           # Batch size for training
+    "model_epochs": 1,                # Number of training epochs
+    "model_max_length": 256,          # Maximum sequence length for BERT
+
+    # Dataset parameters
+    "dataset_type": "goldhamster",       # Type of dataset to use (goldhamster or custom)
+    "data_split": 1,                     # Data split name to use (e.g., "full", "0", "1", ..., "9")
+    "data_use_titles": True,             # Whether to use paper titles
+    "data_use_abstracts": True,          # Whether to use paper abstracts
+    "data_use_mesh_terms": True,         # Whether to use MeSH terms
+    "data_text_column": "TEXT",          # Name of the column containing text
+    "data_id_column": "PMID",            # Name of the column containing document IDs
 }
 
 
@@ -62,7 +58,7 @@ def main():
     # Generate a run name with timestamp
     run_name = f"{CONFIG['dataset_type']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
-   # Define paths
+    # Define paths
     project_root = Path(__file__).resolve().parent.parent
     
     # Set up dataset-specific paths
@@ -90,51 +86,42 @@ def main():
         use_mesh_terms=False
     )
     
-    # Initialize model
-    model = BioBERTClassifier(
-        model_dir=models_dir,
-        labels=data_loader.all_labels,
-        model_name=CONFIG["dataset_type"],
-        max_length=CONFIG["max_length"],
-        learning_rate=CONFIG["learning_rate"],
-        batch_size=CONFIG["batch_size"],
-        epochs=CONFIG["epochs"]
-    )
-    
-    # Use custom BERT model if specified
-    if CONFIG["bert_model"]:
-        model.set_custom_bert_model(CONFIG["bert_model"])
-    
+        
     # Start MLflow run
     with mlflow.start_run(run_name=run_name):
         # Log configuration parameters
         for key, value in CONFIG.items():
             if value is not None:
-                if isinstance(value, Path):
-                    mlflow.log_param(key, str(value))
-                else:
-                    mlflow.log_param(key, value)
+                mlflow.log_param(key, value)
 
-        # Log dataset and model information as tags for easier filtering
-        mlflow.set_tag("Dataset", f"{CONFIG['dataset_type']}_{CONFIG['split']}")
-        mlflow.set_tag("Model", CONFIG["model_name"])
+        # # Log dataset and model information as tags for easier filtering
+        # mlflow.set_tag("Dataset", f"{CONFIG['dataset_type']}_{CONFIG['split']}")
+        # mlflow.set_tag("Model", CONFIG["model_name"])
 
         # Train model
         if CONFIG["train"]:
+            # Initialize model
+            model_path = project_root / CONFIG["model_path"]
+            model = BioBERTClassifier(
+                model_path=model_path,
+                labels=data_loader.all_labels,
+                max_length=CONFIG["model_max_length"],
+                learning_rate=CONFIG["model_learning_rate"],
+                batch_size=CONFIG["model_batch_size"],
+                epochs=CONFIG["model_epochs"],
+                load_model=False
+            )
+
             print(f"Loading data from split {split}...")
-            data = data_loader.load_data(train_file, dev_file)
-            
-            train_data = data['train'][0]
-            train_skipped = data['train'][1]
-            dev_data = data['dev'][0]
-            dev_skipped = data['dev'][1]
-            
+            train_df, train_skipped = data_loader.create_dataframe_from_split(train_file)
+            dev_df, dev_skipped = data_loader.create_dataframe_from_split(dev_file)
+                        
             print(f"Building model...")
-            model.build_model(train_data)
+            model.build_model(train_df)
             
             print(f"Training model...")
             start_time = time.time()
-            model.train(train_data, dev_data, text_column=CONFIG["text_column"])
+            model.train(train_df, dev_df, text_column=CONFIG["text_column"])
             training_time = time.time() - start_time
             print(f"Training completed in {training_time:.2f} seconds")
 

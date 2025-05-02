@@ -101,31 +101,7 @@ def evaluate_multilabel(
             'f1_score': f1,
             'support': support
         }
-    
-    # Micro average (across all instances and labels)
-    micro_precision = precision_score(y_true, y_pred, average='micro', zero_division=0)
-    micro_recall = recall_score(y_true, y_pred, average='micro', zero_division=0)
-    micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0)
-    
-    results['micro_avg'] = {
-        'precision': micro_precision,
-        'recall': micro_recall,
-        'f1_score': micro_f1,
-        'support': y_true.sum()
-    }
-    
-    # Macro average (average of per-label metrics)
-    macro_precision = precision_score(y_true, y_pred, average='macro', zero_division=0)
-    macro_recall = recall_score(y_true, y_pred, average='macro', zero_division=0)
-    macro_f1 = f1_score(y_true, y_pred, average='macro', zero_division=0)
-    
-    results['macro_avg'] = {
-        'precision': macro_precision,
-        'recall': macro_recall,
-        'f1_score': macro_f1,
-        'support': y_true.sum()
-    }
-    
+        
     # Weighted average (weighted by support)
     weighted_precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
     weighted_recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
@@ -137,21 +113,7 @@ def evaluate_multilabel(
         'f1_score': weighted_f1,
         'support': y_true.sum()
     }
-    
-    # Subset accuracy (exact match)
-    subset_accuracy = accuracy_score(y_true, y_pred)
-    results['subset_accuracy'] = {
-        'accuracy': subset_accuracy,
-        'support': len(y_true)
-    }
-    
-    # Hamming loss (fraction of incorrect labels)
-    hamming_loss = (y_true != y_pred).mean()
-    results['hamming_loss'] = {
-        'loss': hamming_loss,
-        'support': y_true.size
-    }
-    
+        
     return results
 
 
@@ -190,52 +152,52 @@ def print_evaluation_results(results: Dict[str, Dict[str, float]]) -> None:
     print("=" * 80)
 
 
-def calculate_confusion_matrix(
-    true_labels_path: Path,
-    pred_labels_path: Path,
-    label: str
-) -> Tuple[int, int, int, int]:
-    """
-    Calculate the confusion matrix for a specific label.
+# def calculate_confusion_matrix(
+#     true_labels_path: Path,
+#     pred_labels_path: Path,
+#     label: str
+# ) -> Tuple[int, int, int, int]:
+#     """
+#     Calculate the confusion matrix for a specific label.
     
-    Args:
-        true_labels_path: Path to the file with true labels
-        pred_labels_path: Path to the file with predicted labels
-        label: Label to calculate the confusion matrix for
+#     Args:
+#         true_labels_path: Path to the file with true labels
+#         pred_labels_path: Path to the file with predicted labels
+#         label: Label to calculate the confusion matrix for
     
-    Returns:
-        Tuple of (true positives, false positives, false negatives, true negatives)
-    """
-    # Read the label files
-    true_labels_dict = read_labels_file(true_labels_path)
-    pred_labels_dict = read_labels_file(pred_labels_path)
+#     Returns:
+#         Tuple of (true positives, false positives, false negatives, true negatives)
+#     """
+#     # Read the label files
+#     true_labels_dict = read_labels_file(true_labels_path)
+#     pred_labels_dict = read_labels_file(pred_labels_path)
     
-    # Get the set of PMIDs in both files
-    common_pmids = set(true_labels_dict.keys()) & set(pred_labels_dict.keys())
+#     # Get the set of PMIDs in both files
+#     common_pmids = set(true_labels_dict.keys()) & set(pred_labels_dict.keys())
     
-    if not common_pmids:
-        raise ValueError("No common PMIDs found between true and predicted labels")
+#     if not common_pmids:
+#         raise ValueError("No common PMIDs found between true and predicted labels")
     
-    # Calculate confusion matrix
-    tp = 0  # True positives
-    fp = 0  # False positives
-    fn = 0  # False negatives
-    tn = 0  # True negatives
+#     # Calculate confusion matrix
+#     tp = 0  # True positives
+#     fp = 0  # False positives
+#     fn = 0  # False negatives
+#     tn = 0  # True negatives
     
-    for pmid in common_pmids:
-        true_labels = true_labels_dict[pmid]
-        pred_labels = pred_labels_dict[pmid]
+#     for pmid in common_pmids:
+#         true_labels = true_labels_dict[pmid]
+#         pred_labels = pred_labels_dict[pmid]
         
-        true_positive = label in true_labels
-        pred_positive = label in pred_labels
+#         true_positive = label in true_labels
+#         pred_positive = label in pred_labels
         
-        if true_positive and pred_positive:
-            tp += 1
-        elif not true_positive and pred_positive:
-            fp += 1
-        elif true_positive and not pred_positive:
-            fn += 1
-        else:  # not true_positive and not pred_positive
-            tn += 1
+#         if true_positive and pred_positive:
+#             tp += 1
+#         elif not true_positive and pred_positive:
+#             fp += 1
+#         elif true_positive and not pred_positive:
+#             fn += 1
+#         else:  # not true_positive and not pred_positive
+#             tn += 1
     
-    return (tp, fp, fn, tn)
+#     return (tp, fp, fn, tn)

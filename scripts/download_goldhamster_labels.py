@@ -30,5 +30,31 @@ def download_goldhamster_labels() -> None:
         url = f"{BASE_URL}/{filename}"
         download_file(url, dest_folder)
 
+def merge_goldhamster_labels() -> None:
+    """Merge all splits into single files for dev, train, and test, ensuring no duplicate PMIDs."""
+    dest_folder = Path('data/goldhamster/labels')
+    merged_files = {
+        "dev_full.txt": DEV_FILENAMES,
+        "train_full.txt": TRAIN_FILENAMES,
+        "test_full.txt": TEST_FILENAMES,
+    }
+
+    for merged_filename, split_filenames in merged_files.items():
+        merged_file_path = dest_folder / merged_filename
+        seen_pmids = set()  # Track unique PMIDs
+        with open(merged_file_path, 'w') as merged_file:
+            for split_filename in split_filenames:
+                split_file_path = dest_folder / split_filename
+                if split_file_path.exists():
+                    with open(split_file_path, 'r') as split_file:
+                        for line in split_file:
+                            pmid = line.split('\t')[0]
+                            if pmid not in seen_pmids:
+                                seen_pmids.add(pmid)
+                                merged_file.write(line)
+        print(f"Merged into: {merged_file_path}")
+
 if __name__ == "__main__":
-    download_goldhamster_labels()
+    #download_goldhamster_labels()
+    merge_goldhamster_labels()
+    print("All files downloaded and merged successfully.")

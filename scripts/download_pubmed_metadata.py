@@ -10,7 +10,7 @@ import json
 
 # Directory containing the TSV files
 LABELS_DIR = Path("data/goldhamster/labels")
-OUTPUT_DIR = Path("data/goldhamster/papers")
+OUTPUT_DIR = Path("data/goldhamster/docs")
 PUBMED_API_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
 def read_tsv_files(directory: Path) -> List[str]:

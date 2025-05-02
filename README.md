@@ -2,30 +2,10 @@
 Data pipeline for monitoring animal experiments in biomedical literature.
 
 
-## Set up your environment
-Install uv:
-- MacOS/Linux: ``curl -LsSf https://astral.sh/uv/install.sh | sh```
-- Windows: ``powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"```
-
-Set up project from existing pyproject.toml:
-````
-uv sync
-````
-
-Set up project from scratch:
-````
-# Create a new directory for our project
-uv init
-
-# Create virtual environment and activate it
-uv venv
-source .venv/bin/activate
-
-# Install dependencies
-uv add requests ipykernel mlflow ...
-````
-
 ## Setup environment with mamba
+- Install miniforge: https://github.com/conda-forge/miniforge
+- After installation, you should be able to use mamba commands.
+- More information on mamba package manager: https://mamba.readthedocs.io/
 ````
 mamba create -y --name 3r-monitoring python=3.11
 mamba activate 3r-monitoring
@@ -40,12 +20,15 @@ Links:
 - Source code: https://github.com/mariananeves/goldhamster
 - Model: https://huggingface.co/SMAFIRA/goldhamster
 
-PubMed API:
+#### PubMed API:
+URLs:
 - https://pmc.ncbi.nlm.nih.gov/tools/developers
 - https://pmc.ncbi.nlm.nih.gov/tools/get-metadata
 - Example API request: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=30955825
 
-#### Download data:
+
+#### Run Scripts:
+Download data:
 ````
 # Download GoldHamster labels
 python scripts/download_goldhamster_labels.py
@@ -54,10 +37,22 @@ python scripts/download_goldhamster_labels.py
 python scripts/download_pubmed_metadata.py
 ````
 
-#### Run training and/or evaluation of pipeline:
+Train model:
+- Start MLflow server in second terminal with ``mlflow ui``.
+- In CONFIG section specify different training parameters.
+- Run training script, this saves the trained model to ``models/``, and logs parameters to MLflow:
 ````
-python scripts/train_and_eval_goldhamster.py
+python scripts/train_model.py
+````
+
+Predict and evaluate trained model:
+- Start MLflow server in second terminal with ``mlflow ui``.
+- In CONFIG section specify the name of the MLflow run from the model you want to use for prediction/evaluation.
+- If ``evaluate = True``, the evaluation results are logged to the same MLflow experiment run.
+- Run evaluation script, and inspect/compare results in MLflow ``http://127.0.0.1:5000/``:
+````
+python scripts/evaluate_model.py
 ````
 
 #### Notebooks:
-- notebooks/01_stats_goldhamster_corpus.ipynb: Shows statistics over downloaded labels and article metadata
+- ``notebooks/01_stats_goldhamster_corpus.ipynb``: Shows statistics over downloaded labels and article metadata
