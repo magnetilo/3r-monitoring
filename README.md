@@ -49,10 +49,19 @@ Predict and evaluate trained model:
 - Start MLflow server in second terminal with ``mlflow ui``.
 - In CONFIG section specify the name of the MLflow run from the model you want to use for prediction/evaluation.
 - If ``evaluate = True``, the evaluation results are logged to the same MLflow experiment run.
-- Run evaluation script, and inspect/compare results in MLflow ``http://127.0.0.1:5000/``:
+- Run evaluation script:
 ````
 python scripts/evaluate_model.py
 ````
+
+Inspect/compare results in MLflow:
+- Start MLflow server in second terminal with ``mlflow ui``.
+- Go to ``http://127.0.0.1:5000/`` in your browser.
+- Select experiment and choose columns, e.g.:
+  - Filter for ``f1`` columns and select all
+  - Select parameters ``data_split`` and ``model_epochs``
+  - Deselect 'Dataset', 'Source', and 'Models'
+- Note: For the ``data_split == '_full'``, training and testset are overlapping, hence the results are "too good". 
 
 #### Notebooks:
 - ``notebooks/01_stats_goldhamster_corpus.ipynb``: Shows statistics over downloaded labels and article metadata
