@@ -26,10 +26,10 @@ mlflow.set_tracking_uri("http://127.0.0.1:5000")
 # Configuration parameters
 CONFIG = {
     "mlflow_experiment_name": "goldhamster",         # MLflow experiment name
-    "mlflow_run_name": "goldhamster-20250502-131034",          # MLflow run name (only used if train is False)
+    "model_name": "goldhamster-20250502-161126",          # MLflow run name (only used if train is False)
     "predictions_dir": project_root / "data/goldhamster/predictions",  # Directory to save predictions
     # "model_path": "goldhamster/goldhamster_model.h5",  # Relative path to load the model (only if model not loged in MLflow)
-    "evaluate": True,           # Whether to evaluate predictions
+    "evaluate": True,           # Whether to also evaluate or only predict
 }
 
 def main():
@@ -40,7 +40,7 @@ def main():
     # Load parameters from MLflow run_name
     params = load_mlflow_params_by_experiment_and_run(
         experiment_name=CONFIG["mlflow_experiment_name"],
-        run_name=CONFIG["mlflow_run_name"]
+        run_name=CONFIG["model_name"]
     )
     if not params:
         params = {
@@ -92,18 +92,18 @@ def main():
     model.save_predictions(predictions, test_df, test_skipped, pred_labels_path, id_column=params["data_id_column"])
 
 
-    if evaluate:
+    if CONFIG["evaluate"]:
         # Start MLflow run with existing run ID if available
         client = MlflowClient()
         experiment = client.get_experiment_by_name(CONFIG["mlflow_experiment_name"])
         runs = client.search_runs(
             experiment_ids=[experiment.experiment_id],
-            filter_string=f"tags.mlflow.runName = '{CONFIG['mlflow_run_name']}'"
+            filter_string=f"tags.mlflow.runName = '{CONFIG['model_name']}'"
         )
         if not runs:
-            print(f"No run found with name '{CONFIG['mlflow_run_name']}' in experiment '{CONFIG['mlflow_experiment_name']}'")
+            print(f"No run found with name '{CONFIG['model_name']}' in experiment '{CONFIG['mlflow_experiment_name']}'")
             print("Starting a new run...")
-            mlflow.start_run(run_name=CONFIG["mlflow_run_name"])
+            mlflow.start_run(run_name=CONFIG["model_name"])
         else:
             run_id = runs[0].info.run_id
             print(f"Found existing run with ID: {run_id}")
