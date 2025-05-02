@@ -1,8 +1,8 @@
-01-goldhamster-pipeline/
 *.txt
 *.h5
 *.tsv
 *.json
+*.keras
 mlruns/
 mlartifacts/
 
