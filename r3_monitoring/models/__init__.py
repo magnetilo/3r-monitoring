@@ -1,0 +1,1 @@
+"""Models module for 3R Monitoring."""
