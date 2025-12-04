@@ -9,13 +9,9 @@ from datetime import datetime
 # Get the project root directory
 project_root = Path(__file__).resolve().parent.parent
 
-# Add the project directory to the system path
-import sys
-sys.path.append(str(project_root))
-
 # Local imports
-from src.data_loaders import GoldhamsterDataLoader
-from src.model import BioBERTClassifier
+from r3_monitoring.data import GoldhamsterDataLoader
+from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
@@ -24,11 +20,12 @@ mlflow.set_tracking_uri("http://127.0.0.1:5000")
 # Set these values to configure the training/prediction process
 CONFIG = {
     # Model parameters
-    "model_base_name": "goldhamster",  # Name of the model
+    "experiment_name": "goldhamster-multilabel",  # MLflow experiment name
+    "model_base_name": "PubMedBERT",  # Name of the model
     "model_pretrainded": "dmis-lab/biobert-v1.1",   # Pre-trained Hugging Face model name to use instead of BioBERT
     "model_learning_rate": 1e-4,      # Learning rate for training
     "model_batch_size": 32,           # Batch size for training
-    "model_epochs": 10,                # Number of training epochs
+    "model_epochs": 3,                # Number of training epochs
     "model_max_length": 256,          # Maximum sequence length for BERT
 
     # Dataset parameters
@@ -52,7 +49,7 @@ def main():
     model_path = temp_model_dir / f"{model_name}.pth"
 
      # Set up MLflow experiment and run
-    mlflow.set_experiment(CONFIG["model_base_name"])
+    mlflow.set_experiment(CONFIG["experiment_name"])
 
     # Initialize data loader
     papers_dir = project_root / "data" / CONFIG["data_name"] / "docs"

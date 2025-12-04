@@ -1,32 +1,30 @@
+#!/usr/bin/env python3
+"""
+Script to evaluate a BioBERT model on the Goldhamster dataset using MLflow.
+"""
+
 from pathlib import Path
-import time
 import mlflow
 import pandas as pd
-import numpy as np
-from datetime import datetime
 from mlflow.tracking import MlflowClient
 
 
 # Get the project root directory
 project_root = Path(__file__).resolve().parent.parent
 
-# Add the project directory to the system path
-import sys
-sys.path.append(str(project_root))
-
 # Local imports
-from src.data_loaders import GoldhamsterDataLoader
-from src.model import BioBERTClassifier
-from src.evaluation import evaluate_multilabel, print_evaluation_results
-from src.utils import load_mlflow_params_by_experiment_and_run, download_mlflow_model_artifact
+from r3_monitoring.data import GoldhamsterDataLoader
+from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
+from r3_monitoring.evaluation import evaluate_multilabel, print_evaluation_results
+from r3_monitoring.utils import load_mlflow_params_by_experiment_and_run, download_mlflow_model_artifact
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 # Configuration parameters
 CONFIG = {
-    "mlflow_experiment_name": "goldhamster",         # MLflow experiment name
-    "model_name": "goldhamster-20251204-120044",          # MLflow run name (only used if train is False)
+    "mlflow_experiment_name": "goldhamster-multilabel",         # MLflow experiment name
+    "model_name": "PubMedBERT-20251204-153859",          # MLflow run name (only used if train is False)
     "predictions_dir": project_root / "data/goldhamster/predictions",  # Directory to save predictions
     # "model_path": "goldhamster/goldhamster_model.h5",  # Relative path to load the model (only if model not loged in MLflow)
     "evaluate": True,           # Whether to also evaluate or only predict

@@ -17,16 +17,41 @@ uv venv
 uv sync
 ````
 
-## BioPubMedBERT-GoldHamster pipeline
+Install the r3_monitoring package in development mode:
+
+````bash
+uv pip install -e .
+````
+
+## Package Structure
+
+```text
+r3_monitoring/
+├── models/
+│   └── pubmedbert_classifier/    # PyTorch BioBERT model implementation
+│       ├── model.py              # BioBERTClassifier and TextDataset classes
+│       └── model_tensorflow_backup.py
+├── data/
+│   ├── goldhamster_loader.py     # GoldHamster dataset loader
+│   └── schemata.py              # Data schema definitions
+├── evaluation/
+│   └── metrics.py               # Multi-label evaluation functions
+└── utils/
+    └── mlflow_helpers.py        # MLflow integration utilities
+```
+
+## PubMedBERT-GoldHamster pipeline
 
 ### Adaptations from Original Source
 
 This implementation has been adapted from [mariananeves/goldhamster](https://github.com/mariananeves/goldhamster) with several key improvements:
 
 - **Framework Migration**: Converted from TensorFlow/Keras to **PyTorch** for better performance and modern ML practices
-- **Structured Architecture**: Implemented clean, modular classes in `src/model.py`:
-  - `TextDataset`: Custom PyTorch Dataset class for efficient text preprocessing and batching
-  - `BioBERTClassifier`: Complete PyTorch model with integrated training, validation, and inference
+- **Structured Architecture**: Implemented clean, modular package structure:
+  - `r3_monitoring.models.pubmedbert_classifier`: PyTorch model with `BioBERTClassifier` and `TextDataset` classes
+  - `r3_monitoring.data`: Data loaders including `GoldhamsterDataLoader` for corpus handling
+  - `r3_monitoring.evaluation`: Metrics and evaluation functions for multi-label classification
+  - `r3_monitoring.utils`: MLflow helpers and utility functions
 - **Enhanced Training**: Added early stopping with best model checkpointing to prevent overfitting
 - **MLflow Integration**: Full experiment tracking with SQLite backend for reproducible ML workflows
 - **Optimized Performance**: Leverages Apple Metal Performance Shaders (MPS) for M1/M2/M3/M4 acceleration

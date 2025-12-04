@@ -18,9 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add project root to Python path
+# Get project root directory
 project_root = Path(__file__).resolve().parent.parent
-sys.path.append(str(project_root))
 
 
 def get_deleted_runs(tracking_uri: str):
