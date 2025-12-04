@@ -7,16 +7,14 @@ from pathlib import Path
 import mlflow
 import pandas as pd
 from mlflow.tracking import MlflowClient
-
-
-# Get the project root directory
-project_root = Path(__file__).resolve().parent.parent
-
-# Local imports
 from r3_monitoring.data import GoldhamsterDataLoader
 from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
 from r3_monitoring.evaluation import evaluate_multilabel, print_evaluation_results
 from r3_monitoring.utils import load_mlflow_params_by_experiment_and_run, download_mlflow_model_artifact
+
+
+# Get the project root directory
+project_root = Path(__file__).resolve().parent.parent
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")

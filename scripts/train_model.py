@@ -1,17 +1,19 @@
+#!/usr/bin/env python3
+"""
+Script to train a BioBERT-based text classification model on the Goldhamster dataset
+using MLflow for experiment tracking.
+"""
+
 from pathlib import Path
+from datetime import datetime
 import time
 import mlflow
-import mlflow.pytorch
-import pandas as pd
-import numpy as np
-from datetime import datetime
+from r3_monitoring.data import GoldhamsterDataLoader
+from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
+
 
 # Get the project root directory
 project_root = Path(__file__).resolve().parent.parent
-
-# Local imports
-from r3_monitoring.data import GoldhamsterDataLoader
-from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
