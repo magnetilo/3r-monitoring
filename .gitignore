@@ -5,6 +5,10 @@
 *.keras
 mlruns/
 mlartifacts/
+mlflow.db
+temp_models/
+data/
+models/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files

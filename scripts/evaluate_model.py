@@ -18,7 +18,7 @@ sys.path.append(str(project_root))
 from src.data_loaders import GoldhamsterDataLoader
 from src.model import BioBERTClassifier
 from src.evaluation import evaluate_multilabel, print_evaluation_results
-from src.utils import load_mlflow_params_by_experiment_and_run
+from src.utils import load_mlflow_params_by_experiment_and_run, download_mlflow_model_artifact
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
@@ -26,7 +26,7 @@ mlflow.set_tracking_uri("http://127.0.0.1:5000")
 # Configuration parameters
 CONFIG = {
     "mlflow_experiment_name": "goldhamster",         # MLflow experiment name
-    "model_name": "goldhamster-20250502-161126",          # MLflow run name (only used if train is False)
+    "model_name": "goldhamster-20251204-120044",          # MLflow run name (only used if train is False)
     "predictions_dir": project_root / "data/goldhamster/predictions",  # Directory to save predictions
     # "model_path": "goldhamster/goldhamster_model.h5",  # Relative path to load the model (only if model not loged in MLflow)
     "evaluate": True,           # Whether to also evaluate or only predict
@@ -68,14 +68,26 @@ def main():
 
     # Initialize model
     print("Initializing model...")
-    model_path = project_root / "models" / params["model_path"]
+    
+    # Try to download model from MLflow first
+    temp_model_path = project_root / "temp_models" / f"{CONFIG['model_name']}.pth"
+    downloaded_model_path = download_mlflow_model_artifact(
+        experiment_name=CONFIG["mlflow_experiment_name"],
+        run_name=CONFIG["model_name"],
+        local_path=temp_model_path
+    )
+    
+    if downloaded_model_path:
+        model_path = downloaded_model_path
+        print(f"Using model downloaded from MLflow: {model_path}")
+    else:
+        # Fallback to traditional model path
+        model_path = project_root / "models" / params.get("model_path", f"goldhamster/{CONFIG['model_name']}.pth")
+        print(f"Using local model path: {model_path}")
+    
     model = BioBERTClassifier(
         model_path=model_path,
         labels=data_loader.all_labels,
-        # max_length=CONFIG["model_max_length"],
-        # learning_rate=CONFIG["model_learning_rate"],
-        # batch_size=CONFIG["model_batch_size"],
-        # epochs=CONFIG["model_epochs"],
         load_model=True
     )
 

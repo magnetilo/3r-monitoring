@@ -1,6 +1,7 @@
 from pathlib import Path
 import time
 import mlflow
+import mlflow.pytorch
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -45,8 +46,10 @@ def main():
     """Main function to train or predict with BioBERT model."""
     # Get model name
     model_name = f"{CONFIG['model_base_name']}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    model_path = project_root / "models" / CONFIG["data_name"] / f"{model_name}.keras"
-    model_path.parent.mkdir(parents=True, exist_ok=True)
+    # Create temporary model path for training (MLflow will handle final storage)
+    temp_model_dir = project_root / "temp_models"
+    temp_model_dir.mkdir(exist_ok=True)
+    model_path = temp_model_dir / f"{model_name}.pth"
 
      # Set up MLflow experiment and run
     mlflow.set_experiment(CONFIG["model_base_name"])
@@ -91,20 +94,58 @@ def main():
                             
         print(f"Training model...")
         start_time = time.time()
-        model.train(train_df, dev_df, text_column=CONFIG["data_text_column"])
+        history = model.train_model(train_df, dev_df, text_column=CONFIG["data_text_column"])
         training_time = time.time() - start_time
         print(f"Training completed in {training_time:.2f} seconds")
 
         # Log training time
         mlflow.log_metric("training_time_seconds", round(training_time, 2))
         
-        # # Log the model
-        # mlflow.log_artifact(model.model_path)
-        # mlflow.set_tag("Model", model.model_path.stem)
-
-        # Log only relative model path instead of full model
-        mlflow.log_param("model_name", model_path.stem)
-        mlflow.log_param("model_path", str(f"{model_path.parent.name}/{model_path.name}"))
+        # Log training metrics if available
+        if isinstance(history, dict) and 'val_accuracy' in history:
+            final_val_accuracy = history['val_accuracy'][-1] if history['val_accuracy'] else 0
+            mlflow.log_metric("final_val_accuracy", round(final_val_accuracy, 4))
+            
+            # Log training curves
+            for epoch, (train_loss, val_loss, val_acc) in enumerate(zip(
+                history.get('train_loss', []),
+                history.get('val_loss', []),
+                history.get('val_accuracy', [])
+            )):
+                mlflow.log_metrics({
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_accuracy": val_acc
+                }, step=epoch)
+        
+        # Save and log the model with MLflow
+        print("Saving and logging model with MLflow...")
+        
+        # First save the model to the temporary path
+        model.save_model()
+        
+        # Log the model file as an artifact
+        mlflow.log_artifact(str(model_path), artifact_path="models")
+        
+        # Log model metadata
+        mlflow.log_dict({
+            "labels": data_loader.all_labels,
+            "model_pretrained": CONFIG['model_pretrainded'],
+            "max_length": CONFIG['model_max_length'],
+            "model_architecture": "BioBERTClassifier",
+            "framework": "PyTorch"
+        }, "model_metadata.json")
+        
+        mlflow.set_tag("Model", model_name)
+        mlflow.set_tag("ModelFormat", "PyTorch")
+        mlflow.log_param("model_name", model_name)
+        mlflow.log_param("model_file", model_path.name)
+        
+        # Clean up temporary file
+        if model_path.exists():
+            model_path.unlink()
+        
+        print(f"Model '{model_name}' logged successfully with MLflow!")
 
 
 if __name__ == "__main__":
