@@ -10,10 +10,12 @@ import requests
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Dict, Optional, Union, Tuple
+from typing import List, Dict, Optional, Union, Tuple, Set
 from datetime import datetime
 import json
 from tqdm import tqdm
+import re
+from collections import defaultdict
 
 
 class PubMedFetcher:
@@ -247,70 +249,6 @@ class PubMedFetcher:
         
         return response.text, pmids
     
-    def load_json_metadata(self, json_dir: Path, filter_pmids: List[str] = None, 
-                          years: List[str] = None, months: List[str] = None) -> List[Dict]:
-        """
-        Load JSON metadata files from directory with monthly organization.
-        
-        Args:
-            json_dir: Directory containing year-month subdirectories with JSON metadata files
-            filter_pmids: Optional list of PMIDs to filter by
-            years: Optional list of years to load (e.g., ["2020", "2021"])
-            months: Optional list of year-month to load (e.g., ["2020-01", "2021-12"])
-            
-        Returns:
-            List of metadata dictionaries
-        """
-        json_dir = Path(json_dir)
-        all_metadata = []
-        
-        # Find all JSON files in directory and subdirectories
-        if months:
-            # Load only specified year-months
-            json_files = []
-            for month in months:
-                month_dir = json_dir / month
-                if month_dir.exists():
-                    json_files.extend(list(month_dir.glob("*.json")))
-        elif years:
-            # Load only specified years (all months within those years)
-            json_files = []
-            for year in years:
-                # Look for all year-month directories matching this year
-                for month_dir in json_dir.glob(f"{year}-*"):
-                    if month_dir.is_dir():
-                        json_files.extend(list(month_dir.glob("*.json")))
-        else:
-            # Load all JSON files recursively (supports flat, yearly, and monthly structures)
-            json_files = list(json_dir.rglob("*.json"))
-        
-        if not json_files:
-            available_dirs = [d.name for d in json_dir.iterdir() if d.is_dir()]
-            print(f"No JSON files found in {json_dir}")
-            if available_dirs:
-                print(f"Available directories: {', '.join(sorted(available_dirs))}")
-            return []
-        
-        # Filter files by PMID if specified
-        if filter_pmids:
-            filter_set = set(filter_pmids)
-            json_files = [f for f in json_files if f.stem in filter_set]
-        
-        print(f"Loading {len(json_files)} JSON metadata files")
-        
-        for json_file in tqdm(json_files, desc="Loading JSON files"):
-            try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
-                    all_metadata.append(metadata)
-                
-            except Exception as e:
-                print(f"Error loading {json_file}: {e}")
-                continue
-        
-        print(f"Successfully loaded {len(all_metadata)} metadata records")
-        return all_metadata
-    
     def _extract_title(self, article) -> str:
         """Extract article title."""
         return article.findtext(".//ArticleTitle", default="N/A")
@@ -528,3 +466,149 @@ class DatasetBuilder:
         """
         # Use batch download which saves JSON metadata files automatically
         self.fetcher.download_batch_metadata(pmids, self.output_dir)
+
+
+def load_pmids_from_search_metadata(
+    countries: List[str],
+    start_date: str,
+    end_date: str,
+    base_search_dir: Path
+) -> Dict[str, Set[str]]:
+    """
+    Load PMIDs from search metadata files for given countries and date ranges.
+    
+    Args:
+        countries: List of country names (e.g., ['switzerland', 'germany'])
+        start_date: Start date in YYYY-MM format (e.g., '2020-01')
+        end_date: End date in YYYY-MM format (e.g., '2024-12')
+        base_search_dir: Base directory containing search_metadata_<country> folders
+        
+    Returns:
+        Dictionary mapping country to set of PMIDs
+        
+    Example:
+        pmids_by_country = load_pmids_from_search_metadata(
+            countries=['switzerland'],
+            start_date='2020-01',
+            end_date='2024-12',
+            base_search_dir=Path('data/pubmed_scraping')
+        )
+    """
+    # Parse date range
+    start_year, start_month = map(int, start_date.split('-'))
+    end_year, end_month = map(int, end_date.split('-'))
+    
+    # Generate all year-month combinations in range
+    target_months = []
+    current_year, current_month = start_year, start_month
+    
+    while (current_year < end_year) or (current_year == end_year and current_month <= end_month):
+        target_months.append(f"{current_year}-{current_month:02d}")
+        current_month += 1
+        if current_month > 12:
+            current_month = 1
+            current_year += 1
+    
+    # Load PMIDs for each country
+    pmids_by_country = {}
+    
+    for country in countries:
+        search_dir = base_search_dir / f"search_metadata_{country}"
+        
+        if not search_dir.exists():
+            print(f"Warning: Search metadata directory not found: {search_dir}")
+            pmids_by_country[country] = set()
+            continue
+        
+        country_pmids = set()
+        found_files = 0
+        
+        print(f"Loading PMIDs for {country} from {start_date} to {end_date}...")
+        
+        for month in target_months:
+            pmid_file = search_dir / f"pmids_{month}.json"
+            
+            if pmid_file.exists():
+                try:
+                    with open(pmid_file, 'r') as f:
+                        data = json.load(f)
+                        pmids = data.get('pmids', [])
+                        country_pmids.update(pmids)
+                        found_files += 1
+                        
+                        if len(pmids) > 0:
+                            print(f"  {month}: {len(pmids):,} PMIDs")
+                        
+                except (json.JSONDecodeError, KeyError) as e:
+                    print(f"Warning: Error reading {pmid_file}: {e}")
+            else:
+                print(f"  {month}: file not found")
+        
+        pmids_by_country[country] = country_pmids
+        print(f"Total for {country}: {len(country_pmids):,} unique PMIDs from {found_files} files")
+    
+    return pmids_by_country
+
+
+def load_metadata_for_pmids(
+    pmids: Set[str], 
+    metadata_base_dir: Path,
+    show_progress: bool = True
+) -> List[Dict]:
+    """
+    Load PubMed metadata JSON files for given PMIDs.
+    
+    Args:
+        pmids: Set of PMIDs to load
+        metadata_base_dir: Base directory containing year-month subdirectories with JSON files
+        show_progress: Whether to show progress bar
+        
+    Returns:
+        List of metadata dictionaries
+        
+    Example:
+        metadata = load_metadata_for_pmids(
+            pmids={'12345', '67890'},
+            metadata_base_dir=Path('data/pubmed_scraping/pubmed_metadata')
+        )
+    """
+    metadata_list = []
+    found_count = 0
+    missing_pmids = set(pmids.copy())
+    
+    # Get all subdirectories (year-month folders)
+    subdirs = [d for d in metadata_base_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
+    
+    if show_progress:
+        subdirs = tqdm(subdirs, desc="Searching metadata directories")
+    
+    for subdir in subdirs:
+        # Get all JSON files in this subdirectory
+        json_files = list(subdir.glob("*.json"))
+        
+        for json_file in json_files:
+            # Extract PMID from filename (e.g., "12345.json" -> "12345")
+            pmid = json_file.stem
+            
+            if pmid in missing_pmids:
+                try:
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                        metadata_list.append(metadata)
+                        missing_pmids.remove(pmid)
+                        found_count += 1
+                        
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    print(f"Warning: Error reading {json_file}: {e}")
+        
+        # Early exit if all PMIDs found
+        if not missing_pmids:
+            break
+    
+    if missing_pmids:
+        print(f"Warning: Could not find metadata for {len(missing_pmids):,} PMIDs")
+        if len(missing_pmids) <= 10:  # Show missing PMIDs if not too many
+            print(f"Missing PMIDs: {sorted(list(missing_pmids))}")
+    
+    print(f"Loaded metadata for {found_count:,} out of {len(pmids):,} requested PMIDs")
+    return metadata_list
