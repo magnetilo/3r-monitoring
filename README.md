@@ -68,12 +68,6 @@ data/
     └── scraping_summary.json         # Overall scraping statistics
 ```
 
-### Data Organization Notes
-
-- **Monthly Organization**: JSON metadata files are organized by publication month (`YYYY-MM/`) to optimize file system performance (~2,500 files per directory instead of 30,000+ per year)
-- **Shared Metadata**: All countries share the same `pubmed_metadata/` directory since articles can be relevant to multiple countries
-- **Search Results**: Country-specific directories contain PMID lists, search parameters, and download statistics
-
 ## PubMedBERT-GoldHamster pipeline
 
 ### Adaptations from Original Source
@@ -107,111 +101,55 @@ URLs:
 
 #### Run Scripts
 
-Download data:
+Download Goldhamster training data:
 
 ```` bash
 # Download GoldHamster labels
-python scripts/download_goldhamster_labels.py
+uv run scripts/download_goldhamster_labels.py
 
 # Download PubMed article metadata for GoldHamster labels
-python scripts/download_pubmed_metadata.py
+uv run scripts/download_pubmed_metadata.py
 ````
 
-Train model:
-
-- Start MLflow server with SQLite backend: ``mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db``
-- In CONFIG section specify different training parameters.
-- Run training script, this saves the trained model to ``models/``, and logs parameters to MLflow:
+Train and evaluate model:
 
 ```` bash
+# Start MLflow server with SQLite backend
+mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db
+
+# Specify training parameters in CONFIG section, then run training script 
 uv run scripts/train_model.py
-````
 
-Predict and evaluate trained model:
-
-- Start MLflow server with SQLite backend: ``mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db``
-- In CONFIG section specify the name of the MLflow run from the model you want to use for prediction/evaluation.
-- If ``evaluate = True``, the evaluation results are logged to the same MLflow experiment run.
-- Run evaluation script:
-
-```` bash
+# Specify name of the MLflow run to evaluate and parameters, then run ecaluation script
 uv run scripts/evaluate_model.py
-````
 
-Inspect/compare results in MLflow:
+# Inspect/compare results in MLflow in you browser at:
+http://127.0.0.1:5000
 
-- Start MLflow server with SQLite backend: ``mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db``
-- Go to ``http://127.0.0.1:5000/`` in your browser.
-- Select experiment and choose columns, e.g.:
-  - Filter for ``f1`` columns and select all
-  - Select parameters ``data_split`` and ``model_epochs``
-  - Deselect 'Dataset', 'Source', and 'Models'
-- Note: For the ``data_split == '_full'``, training and testset are overlapping, hence the results are "too good".
-
-Clean up deleted runs:
-
-- Permanently delete runs marked as deleted in MLflow UI:
-
-```` bash
+# Clean up deleted MLflow runs (permanently delete runs marked as deleted in MLflow UI):
 uv run scripts/mlflow_gc.py --dry-run  # Preview what will be deleted
 uv run scripts/mlflow_gc.py            # Actually delete
 ````
+
+- Note: For the ``data_split == '_full'``, training and testset are overlapping, hence the results are "too good".
 
 Process PubMed articles:
 
 The `process_pubmed_articles.py` script processes PubMed metadata JSON files into a comprehensive analysis table in Parquet format. It includes Swiss affiliation detection, Goldhamster model predictions, and support for incremental updates.
 
-Basic usage - process all Swiss data:
-
 ```` bash
-uv run scripts/process_pubmed_articles.py --countries switzerland
-````
+# Inspect all possible parameters
+uv run scripts/process_pubmed_articles.py --help
 
-Process specific date range:
-
-```` bash
-uv run scripts/process_pubmed_articles.py --countries switzerland \
+# Example call
+uv run scripts/process_pubmed_articles.py \
+  --countries switzerland \
   --start-date 2009-01 \
   --end-date 2025-12 \
   --calculate-goldhamster \
   --goldhamster-model-name PubMedBERT-20251204-120044 \
-  --output-file data/results/pubmed_analysis.parquet
-````
-
-Process with custom output file and model:
-
-```` bash
-uv run scripts/process_pubmed_articles.py --countries switzerland \
-  --output-file data/swiss_articles_2024.parquet \
-  --goldhamster-model-run-name "goldhamster-final-model"
-````
-
-Process with batch processing for memory efficiency:
-
-```` bash
-uv run scripts/process_pubmed_articles.py --countries switzerland \
-  --batch-size 500 \
-  --start-date 2022-01 \
-  --end-date 2024-12
-````
-
-Enable Goldhamster predictions (disabled by default):
-
-```` bash
-uv run scripts/process_pubmed_articles.py --countries switzerland \
-  --calculate-goldhamster-predictions \
-  --start-date 2022-01 \
-  --end-date 2024-12
-````
-
-Append new data to existing analysis (upsert mode):
-
-```` bash
-# First run creates the file
-uv run scripts/process_pubmed_articles.py --countries switzerland --end-date 2023-12
-
-# Second run adds new data without duplicates
-uv run scripts/process_pubmed_articles.py --countries switzerland --start-date 2024-01 --end-date 2024-12 --upsert
+  --output-file data/results/pubmed_analysis.parquet \
+  --upsert              # Appends new data to existing output-file (upsert mode)
 ````
 
 The script outputs a Parquet file containing:
@@ -224,3 +162,4 @@ The script outputs a Parquet file containing:
 #### Notebooks
 
 - ``notebooks/01_stats_goldhamster_corpus.ipynb``: Shows statistics over downloaded labels and article metadata
+- ``notebooks/02_pubmed_analysis_statistics.ipynb``: Create result tables and plots from processed parquet file
