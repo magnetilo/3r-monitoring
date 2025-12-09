@@ -99,9 +99,9 @@ URLs:
 - https://pmc.ncbi.nlm.nih.gov/tools/get-metadata
 - Example API request: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=30955825
 
-#### Run Scripts
+## Scripts
 
-Download Goldhamster training data:
+### Download Goldhamster training data
 
 ```` bash
 # Download GoldHamster labels
@@ -111,7 +111,7 @@ uv run scripts/download_goldhamster_labels.py
 uv run scripts/download_pubmed_metadata.py
 ````
 
-Train and evaluate model:
+### Train and evaluate model
 
 ```` bash
 # Start MLflow server with SQLite backend
@@ -133,7 +133,13 @@ uv run scripts/mlflow_gc.py            # Actually delete
 
 - Note: For the ``data_split == '_full'``, training and testset are overlapping, hence the results are "too good".
 
-Process PubMed articles:
+### Scrape PubMed articles
+
+```` bash
+uv run scripts/scrape_pubmed_articles.py
+````
+
+### Process PubMed articles
 
 The `process_pubmed_articles.py` script processes PubMed metadata JSON files into a comprehensive analysis table in Parquet format. It includes Swiss affiliation detection, Goldhamster model predictions, and support for incremental updates.
 
@@ -159,7 +165,7 @@ The script outputs a Parquet file containing:
 - Goldhamster model predictions (multi-label classification scores)
 - Processing metadata (timestamps, model version, etc.)
 
-#### Notebooks
+### Notebooks
 
 - ``notebooks/01_stats_goldhamster_corpus.ipynb``: Shows statistics over downloaded labels and article metadata
 - ``notebooks/02_pubmed_analysis_statistics.ipynb``: Create result tables and plots from processed parquet file
