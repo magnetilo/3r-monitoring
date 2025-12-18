@@ -115,7 +115,7 @@ uv run scripts/download_pubmed_metadata.py
 
 ```` bash
 # Start MLflow server with SQLite backend
-mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db
+uv run mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db
 
 # Specify training parameters in CONFIG section, then run training script 
 uv run scripts/train_model.py
@@ -127,8 +127,7 @@ uv run scripts/evaluate_model.py
 http://127.0.0.1:5000
 
 # Clean up deleted MLflow runs (permanently delete runs marked as deleted in MLflow UI):
-uv run scripts/mlflow_gc.py --dry-run  # Preview what will be deleted
-uv run scripts/mlflow_gc.py            # Actually delete
+uv run mlflow gc --tracking-uri http://127.0.0.1:5000 --backend-store-uri sqlite:///mlflow.db
 ````
 
 - Note: For the ``data_split == '_full'``, training and testset are overlapping, hence the results are "too good".
@@ -144,17 +143,19 @@ uv run scripts/scrape_pubmed_articles.py
 The `process_pubmed_articles.py` script processes PubMed metadata JSON files into a comprehensive analysis table in Parquet format. It includes Swiss affiliation detection, Goldhamster model predictions, and support for incremental updates.
 
 ```` bash
+# Start MLflow server with SQLite backend (for loading the trained model)
+uv run mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db
+
 # Inspect all possible parameters
 uv run scripts/process_pubmed_articles.py --help
 
 # Example call
 uv run scripts/process_pubmed_articles.py \
   --countries switzerland \
-  --start-date 2009-01 \
+  --start-date 2010-01 \
   --end-date 2025-12 \
   --calculate-goldhamster \
   --goldhamster-model-name PubMedBERT-20251204-120044 \
-  --output-file data/results/pubmed_analysis.parquet \
   --upsert              # Appends new data to existing output-file (upsert mode)
 ````
 
@@ -169,3 +170,45 @@ The script outputs a Parquet file containing:
 
 - ``notebooks/01_stats_goldhamster_corpus.ipynb``: Shows statistics over downloaded labels and article metadata
 - ``notebooks/02_pubmed_analysis_statistics.ipynb``: Create result tables and plots from processed parquet file
+
+#### Statistical Analysis and Visualization
+
+The `02_pubmed_analysis_statistics.ipynb` notebook generates comprehensive plots showing temporal trends in animal experimentation research with Swiss affiliations. The analysis implements two complementary approaches for counting and uncertainty estimation:
+
+##### Approach 1: Binary Classification with Test Set Uncertainty
+
+- **Counts**: Binary classification using threshold (typically 0.3 for better recall-precision balance)
+- **Uncertainty**: Binomial standard deviation √(n × accuracy × (1 - accuracy)) using test set accuracy
+- **Foundation**: Models each prediction as correct/incorrect based on empirical model performance
+- **Advantages**: Uses real model performance metrics, accounts for systematic model errors
+
+##### Approach 2: Probability Sum with Poisson Binomial Uncertainty
+
+- **Counts**: Sum of predicted probabilities from the Goldhamster model
+- **Uncertainty**: Poisson binomial standard deviation √Σp_i(1-p_i), where p_i are individual prediction probabilities
+- **Foundation**: Follows Poisson binomial distribution (sum of independent Bernoulli trials with different success probabilities) which converges to Gaussian for large samples ([reference](https://math.stackexchange.com/questions/2375886/approximating-poisson-binomial-distribution-with-normal-distribution))
+- **Advantages**: Uses full probability information, theoretically elegant for well-calibrated models
+
+##### Key Insights from Comparison:
+
+- Probability sum approach generally provides more accurate expected counts
+- Binary classification with 0.5 threshold tends to undercount due to precision-recall imbalance (high precision, lower recall)
+- Test set accuracy-based uncertainty estimates are more robust to model calibration issues
+- Both approaches show temporal trends with statistically rigorous uncertainty quantification
+
+The visualization displays both approaches side-by-side with transparent uncertainty bands, enabling direct comparison of counting methodologies and their associated confidence intervals.
+
+## (Possible) next steps
+
+- Quality checks for download filters: I didn't do much checking yet. But recognized, e.g., that some downloaded publication dates are outside the requested time period. Also, I didn't check "Switzerland API filter" too much yet.
+- Quality checks on the classified Goldhamster-Labels would also be good: Ideally by a 3R-expert. Are we classifying correctly in general..?
+- Thoughts on mapping the Goldhamster-Labels. I think, you are especially interested in "in vivo" label, correct?
+  - see Paper, section "Definition of the annotation schema" for definitions
+- Train an "in vivo yes/no" binary model as well an compare performance
+- Mapping/clustering MeSH terms: I didn't do much on this so far. This requires some research and better understanding of MeSH terms. Also the "labels by MeSH term" excel in the attachment can be used to find MeSH terms with many "in vivo" labels and others with few.
+  - Are there MeSH or Journals that we want to exclude a priori from processing?
+  - Note, there are also many articles without MeSH terms, which probably need to be processed anyway.
+- Thinking about visualizations and results
+  - Do we already have all information we need?
+  - Is something missing?
+- Tidy up PubMed article scraping & processing: The code files are still a bit messy yet...

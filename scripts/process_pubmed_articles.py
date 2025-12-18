@@ -88,8 +88,8 @@ def analyze_swiss_affiliations(authors: List[Dict[str, Any]]) -> Dict[str, bool]
 
 
 def predict_goldhamster_labels(
-    texts: List[str], 
-    model, 
+    texts: List[str],
+    model,
     text_column: str = "text"
 ) -> List[Dict[str, float]]:
     """
@@ -110,9 +110,10 @@ def predict_goldhamster_labels(
     df = pd.DataFrame({text_column: texts})
     
     # Get predictions from model
-    predictions = model.predict(df, text_column=text_column)
+    # predictions = model.predict(df, text_column=text_column)
+    probas = model.predict_proba(df, text_column=text_column)
         
-    return predictions
+    return probas
 
 
 def process_metadata_batch(
@@ -211,7 +212,7 @@ def main(
     countries: Annotated[List[str], typer.Option(help="Countries to process (e.g., switzerland,germany)")] = ["switzerland"],
     start_date: Annotated[str, typer.Option(help="Start date in YYYY-MM format")] = "2020-01",
     end_date: Annotated[str, typer.Option(help="End date in YYYY-MM format")] = "2024-12",
-    output_file: Annotated[Path, typer.Option(help="Output parquet file path")] = Path("data/results/pubmed_analysis.parquet"),
+    output_file: Annotated[Optional[Path], typer.Option(help="Output parquet file path (auto-generated if not specified)")] = None,
     base_data_dir: Annotated[Path, typer.Option(help="Base data directory")] = Path("data/pubmed_scraping"),
     batch_size: Annotated[int, typer.Option(help="Processing batch size")] = 1000,
     calculate_goldhamster: Annotated[bool, typer.Option(help="Calculate Goldhamster predictions")] = False,
@@ -229,10 +230,18 @@ def main(
     """
     print(f"Processing PubMed articles for countries: {countries}")
     print(f"Date range: {start_date} to {end_date}")
-    print(f"Output file: {output_file}")
     
     # Get project root
     project_root = Path(__file__).parent.parent
+    
+    # Set default output file if not specified
+    if output_file is None:
+        if calculate_goldhamster and goldhamster_model_name:
+            output_file = Path(f"data/results/pubmed_analysis_{goldhamster_model_name}.parquet")
+        else:
+            output_file = Path("data/results/pubmed_analysis.parquet")
+    
+    print(f"Output file: {output_file}")
     
     # Resolve paths
     base_data_dir = project_root / base_data_dir if not base_data_dir.is_absolute() else base_data_dir

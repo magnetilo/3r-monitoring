@@ -308,16 +308,17 @@ class BioBERTClassifier(nn.Module):
         
         return history
     
-    def predict(self, test_data: pd.DataFrame, text_column: str = "TEXT") -> Dict[str, np.ndarray]:
+    def _get_predictions(self, test_data: pd.DataFrame, text_column: str = "TEXT", return_proba: bool = False) -> Dict[str, np.ndarray]:
         """
-        Make predictions with the model.
+        Internal method to get predictions or probabilities.
         
         Args:
             test_data: Test data
             text_column: Name of the column containing text
+            return_proba: If True, return probabilities; if False, return binary predictions
             
         Returns:
-            Dictionary with predictions for each label
+            Dictionary with predictions/probabilities for each label
         """
         self.eval()
         test_loader = self._create_data_loader(test_data, text_column, is_training=False)
@@ -332,15 +333,48 @@ class BioBERTClassifier(nn.Module):
                 outputs = self(input_ids, attention_mask)
                 
                 for label in self.all_labels:
-                    logits = outputs[label]
-                    preds = torch.argmax(logits, dim=1)
-                    predictions[label].extend(preds.cpu().numpy())
+                    logits = outputs[label]  # Shape: [batch_size, 2]
+                    
+                    if return_proba:
+                        # Apply softmax and get probability of positive class (class 1)
+                        probs = torch.softmax(logits, dim=1)[:, 1]  # Take probability of class 1
+                        predictions[label].extend(probs.cpu().numpy())
+                    else:
+                        # Return binary predictions using argmax
+                        preds = torch.argmax(logits, dim=1)  # 0 or 1
+                        predictions[label].extend(preds.cpu().numpy())
         
         # Convert to numpy arrays
         for label in self.all_labels:
             predictions[label] = np.array(predictions[label])
         
         return predictions
+    
+    def predict(self, test_data: pd.DataFrame, text_column: str = "TEXT") -> Dict[str, np.ndarray]:
+        """
+        Make binary predictions with the model.
+        
+        Args:
+            test_data: Test data
+            text_column: Name of the column containing text
+            
+        Returns:
+            Dictionary with binary predictions (0/1) for each label
+        """
+        return self._get_predictions(test_data, text_column, return_proba=False)
+    
+    def predict_proba(self, test_data: pd.DataFrame, text_column: str = "TEXT") -> Dict[str, np.ndarray]:
+        """
+        Make probability predictions with the model.
+        
+        Args:
+            test_data: Test data
+            text_column: Name of the column containing text
+            
+        Returns:
+            Dictionary with probability scores (0.0-1.0) for each label
+        """
+        return self._get_predictions(test_data, text_column, return_proba=True)
     
     def save_model(self) -> None:
         """Save the model and tokenizer."""

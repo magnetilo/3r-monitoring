@@ -22,7 +22,7 @@ mlflow.set_tracking_uri("http://127.0.0.1:5000")
 # Configuration parameters
 CONFIG = {
     "mlflow_experiment_name": "goldhamster-multilabel",         # MLflow experiment name
-    "model_name": "PubMedBERT-20251204-153859",          # MLflow run name (only used if train is False)
+    "model_name": "PubMedBERT-20251218-181714",          # MLflow run name (only used if train is False)
     "predictions_dir": project_root / "data/goldhamster/predictions",  # Directory to save predictions
     # "model_path": "goldhamster/goldhamster_model.h5",  # Relative path to load the model (only if model not loged in MLflow)
     "evaluate": True,           # Whether to also evaluate or only predict

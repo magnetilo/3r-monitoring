@@ -27,7 +27,7 @@ CONFIG = {
     "model_pretrainded": "dmis-lab/biobert-v1.1",   # Pre-trained Hugging Face model name to use instead of BioBERT
     "model_learning_rate": 1e-4,      # Learning rate for training
     "model_batch_size": 32,           # Batch size for training
-    "model_epochs": 3,                # Number of training epochs
+    "model_epochs": 10,                # Number of training epochs
     "model_max_length": 256,          # Maximum sequence length for BERT
 
     # Dataset parameters
