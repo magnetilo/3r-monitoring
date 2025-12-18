@@ -1,32 +1,28 @@
+#!/usr/bin/env python3
+"""
+Script to evaluate a BioBERT model on the Goldhamster dataset using MLflow.
+"""
+
 from pathlib import Path
-import time
 import mlflow
 import pandas as pd
-import numpy as np
-from datetime import datetime
 from mlflow.tracking import MlflowClient
+from r3_monitoring.data import GoldhamsterDataLoader
+from r3_monitoring.models.pubmedbert_classifier import BioBERTClassifier
+from r3_monitoring.evaluation import evaluate_multilabel, print_evaluation_results
+from r3_monitoring.utils import load_mlflow_params_by_experiment_and_run, download_mlflow_model_artifact
 
 
 # Get the project root directory
 project_root = Path(__file__).resolve().parent.parent
-
-# Add the project directory to the system path
-import sys
-sys.path.append(str(project_root))
-
-# Local imports
-from src.data_loaders import GoldhamsterDataLoader
-from src.model import BioBERTClassifier
-from src.evaluation import evaluate_multilabel, print_evaluation_results
-from src.utils import load_mlflow_params_by_experiment_and_run
 
 # Set MLflow tracking URI
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 # Configuration parameters
 CONFIG = {
-    "mlflow_experiment_name": "goldhamster",         # MLflow experiment name
-    "model_name": "goldhamster-20250502-161126",          # MLflow run name (only used if train is False)
+    "mlflow_experiment_name": "goldhamster-multilabel",         # MLflow experiment name
+    "model_name": "PubMedBERT-20251218-181714",          # MLflow run name (only used if train is False)
     "predictions_dir": project_root / "data/goldhamster/predictions",  # Directory to save predictions
     # "model_path": "goldhamster/goldhamster_model.h5",  # Relative path to load the model (only if model not loged in MLflow)
     "evaluate": True,           # Whether to also evaluate or only predict
@@ -68,14 +64,26 @@ def main():
 
     # Initialize model
     print("Initializing model...")
-    model_path = project_root / "models" / params["model_path"]
+    
+    # Try to download model from MLflow first
+    temp_model_path = project_root / "temp_models" / f"{CONFIG['model_name']}.pth"
+    downloaded_model_path = download_mlflow_model_artifact(
+        experiment_name=CONFIG["mlflow_experiment_name"],
+        run_name=CONFIG["model_name"],
+        local_path=temp_model_path
+    )
+    
+    if downloaded_model_path:
+        model_path = downloaded_model_path
+        print(f"Using model downloaded from MLflow: {model_path}")
+    else:
+        # Fallback to traditional model path
+        model_path = project_root / "models" / params.get("model_path", f"goldhamster/{CONFIG['model_name']}.pth")
+        print(f"Using local model path: {model_path}")
+    
     model = BioBERTClassifier(
         model_path=model_path,
         labels=data_loader.all_labels,
-        # max_length=CONFIG["model_max_length"],
-        # learning_rate=CONFIG["model_learning_rate"],
-        # batch_size=CONFIG["model_batch_size"],
-        # epochs=CONFIG["model_epochs"],
         load_model=True
     )
 

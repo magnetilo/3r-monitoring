@@ -3,15 +3,14 @@ from typing import Dict, List, Tuple, Optional, Any, Union
 import time
 from datetime import datetime
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import CategoricalAccuracy
-from tensorflow.keras.layers import Input, Dropout, Dense
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.optimizers.legacy import Adam
-from tensorflow.keras.initializers import TruncatedNormal
-from transformers import TFBertModel, BertTokenizerFast
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report
+import numpy as np
+from transformers import BertModel, BertTokenizerFast
 
 
 class BioBERTClassifier:

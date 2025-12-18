@@ -5,6 +5,13 @@
 *.keras
 mlruns/
 mlartifacts/
+mlflow.db
+temp_models/
+data/
+models/
+# But don't ignore the Python package data and models directories
+!r3_monitoring/data/
+!r3_monitoring/models/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files

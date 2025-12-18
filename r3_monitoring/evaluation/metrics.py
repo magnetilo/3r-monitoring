@@ -86,6 +86,7 @@ def evaluate_multilabel(
                 'precision': float('nan'),
                 'recall': float('nan'),
                 'f1_score': float('nan'),
+                'accuracy': float('nan'),
                 'support': 0
             }
             continue
@@ -93,12 +94,14 @@ def evaluate_multilabel(
         precision = precision_score(label_true, label_pred, zero_division=0)
         recall = recall_score(label_true, label_pred, zero_division=0)
         f1 = f1_score(label_true, label_pred, zero_division=0)
+        accuracy = accuracy_score(label_true, label_pred)
         support = sum(label_true)
         
         results[label] = {
             'precision': precision,
             'recall': recall,
             'f1_score': f1,
+            'accuracy': accuracy,
             'support': support
         }
         
@@ -107,13 +110,27 @@ def evaluate_multilabel(
     weighted_recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
     weighted_f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
     
+    # Calculate weighted accuracy (per-label accuracies weighted by support)
+    total_weighted_accuracy = 0
+    total_support = 0
+    for i, label in enumerate(all_labels):
+        label_true = y_true[:, i]
+        label_support = sum(label_true)  # Number of positive samples
+        if label_support > 0 and label in results:  # Only include labels with positive samples
+            label_accuracy = results[label]['accuracy']
+            total_weighted_accuracy += label_accuracy * label_support
+            total_support += label_support
+    
+    weighted_accuracy = total_weighted_accuracy / total_support if total_support > 0 else 0
+        
     results['weighted_avg'] = {
         'precision': weighted_precision,
         'recall': weighted_recall,
         'f1_score': weighted_f1,
-        'support': y_true.sum()
+        'accuracy': weighted_accuracy,
+        'support': total_support
     }
-        
+            
     return results
 
 
@@ -125,31 +142,31 @@ def print_evaluation_results(results: Dict[str, Dict[str, float]]) -> None:
         results: Dictionary with evaluation results
     """
     print("\nEvaluation Results:")
-    print("=" * 80)
-    print(f"{'Label':<20} {'Precision':<10} {'Recall':<10} {'F1-Score':<10} {'Support':<10}")
-    print("-" * 80)
+    print("=" * 90)
+    print(f"{'Label':<20} {'Precision':<10} {'Recall':<10} {'F1-Score':<10} {'Accuracy':<10} {'Support':<10}")
+    print("-" * 90)
     
     # Print per-label metrics
     for label, metrics in results.items():
         if label not in ['micro_avg', 'macro_avg', 'weighted_avg', 'subset_accuracy', 'hamming_loss']:
-            print(f"{label:<20} {metrics.get('precision', float('nan')):9.4f} {metrics.get('recall', float('nan')):9.4f} {metrics.get('f1_score', float('nan')):9.4f} {metrics.get('support', 0):<10}")
+            print(f"{label:<20} {metrics.get('precision', float('nan')):9.4f} {metrics.get('recall', float('nan')):9.4f} {metrics.get('f1_score', float('nan')):9.4f} {metrics.get('accuracy', float('nan')):9.4f} {metrics.get('support', 0):<10}")
     
-    print("-" * 80)
+    print("-" * 90)
     
     # Print average metrics
     for avg_type in ['micro_avg', 'macro_avg', 'weighted_avg']:
         if avg_type in results:
             metrics = results[avg_type]
-            print(f"{avg_type:<20} {metrics.get('precision', float('nan')):9.4f} {metrics.get('recall', float('nan')):9.4f} {metrics.get('f1_score', float('nan')):9.4f} {metrics.get('support', 0):<10}")
+            print(f"{avg_type:<20} {metrics.get('precision', float('nan')):9.4f} {metrics.get('recall', float('nan')):9.4f} {metrics.get('f1_score', float('nan')):9.4f} {metrics.get('accuracy', float('nan')):9.4f} {metrics.get('support', 0):<10}")
     
     # Print accuracy metrics
     if 'subset_accuracy' in results:
-        print(f"{'Subset Accuracy':<20} {results['subset_accuracy'].get('accuracy', float('nan')):9.4f} {'':<10} {'':<10} {results['subset_accuracy'].get('support', 0):<10}")
+        print(f"{'Subset Accuracy':<20} {results['subset_accuracy'].get('accuracy', float('nan')):9.4f} {'':<10} {'':<10} {'':<10} {results['subset_accuracy'].get('support', 0):<10}")
     
     if 'hamming_loss' in results:
-        print(f"{'Hamming Loss':<20} {results['hamming_loss'].get('loss', float('nan')):9.4f} {'':<10} {'':<10} {results['hamming_loss'].get('support', 0):<10}")
+        print(f"{'Hamming Loss':<20} {results['hamming_loss'].get('loss', float('nan')):9.4f} {'':<10} {'':<10} {'':<10} {results['hamming_loss'].get('support', 0):<10}")
     
-    print("=" * 80)
+    print("=" * 90)
 
 
 # def calculate_confusion_matrix(

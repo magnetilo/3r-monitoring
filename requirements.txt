@@ -1,9 +1,0 @@
-ipykernel==6.29.5
-mlflow==2.21.3
-pandas==2.2.3
-requests==2.32.3
-tqdm==4.67.1
-transformers==4.51.3
-tensorflow==2.15.0
-keras==2.15.0,<3
-pytorch==2.1.0
